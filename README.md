@@ -1,3 +1,10 @@
+
+# Demo Video
+
+Watch a full walkthrough of MCP server hosting and troubleshooting on Azure Functions:
+
+[![MCP Server Hosting Demo](https://img.youtube.com/vi/gLKP41efvo0/0.jpg)](https://www.youtube.com/watch?v=gLKP41efvo0&list=PL8sOwioiPP75hpOrouD0SBkGmu6czVX24&index=16)
+
 # Host remote MCP servers built with official MCP SDKs on Azure Functions
 
 This repo contains instructions and sample for running MCP server built with the Node MCP SDK on Azure Functions. The repo uses the weather sample server to demonstrate how this can be done. You can clone to run and test the server locally, follow by easy deploy with `azd up` to have it in the cloud in a few minutes. 
@@ -95,4 +102,109 @@ Since Entra ID doesn't provide native support for DCR (Dynamic Client Registrati
 ### Bring-your-own MCP server
 
 If you've already built an MCP server, follow the instructions in the document [Host bring-your-own (BYO) MCP servers on Azure Functions
-](https://github.com/Azure-Samples/mcp-sdk-functions-hosting-node/blob/main/BYOServer.md). 
+
+## Troubleshooting & Demo Guide: MCP Server Hosting
+
+This section provides step-by-step instructions and troubleshooting tips for running and testing three MCP server hosting scenarios:
+
+### 1. Local MCP Server (`local-mcp-server`)
+
+**How to test:**
+1. Open `mcp.json` in VS Code.
+2. Click **Start** above `local-mcp-server`.
+3. The server should start instantly. If you see "Error", check that you ran `npm install` and `func start` in the root directory.
+4. Use Copilot Agent to ask "What is the weather in NYC?" and verify a response.
+
+**Common issues:**
+- Port already in use: Stop other local servers or change the port in `mcp.json`.
+- Missing dependencies: Run `npm install`.
+
+---
+
+### 2. Remote MCP Server (`remote-mcp-server`)
+
+**How to test:**
+1. Deploy to Azure with `azd up`.
+2. In VS Code, open `mcp.json` and click **Start** above `remote-mcp-server`.
+3. Enter your Azure Function App name (from portal or terminal output).
+4. Enter your Function App key (from Azure Portal > Function App > App keys > _default_).
+5. Ask "What is the weather in NYC?" and verify a response.
+
+**Common issues:**
+- 401 Unauthorized: Double-check the Function App key and that the app is running.
+- Wrong app name: Use the exact name from Azure Portal.
+- Network issues: Ensure your local machine can reach Azure endpoints.
+
+---
+
+### 3. Remote MCP Server via APIM & OAuth (`remote-mcp-server-apim`)
+
+**This is the most secure and recommended demo.**
+
+#### How it works (human-friendly):
+- APIM acts as a gateway in front of your Azure Function MCP server.
+- APIM enforces OAuth (Azure AD/Entra ID) authentication using policies.
+- When you connect, VS Code prompts for the APIM name and triggers an OAuth login.
+- You sign in with your Microsoft account; APIM validates your token and lets you access the MCP server.
+
+#### Step-by-step testing:
+1. In VS Code, open `mcp.json` and click **Start** above `remote-mcp-server-apim`.
+2. Enter your APIM resource name (e.g., `apim-lqr4ygu76wqca`).
+3. When prompted, click **Allow** to let the MCP server authenticate to Microsoft.
+4. Sign in with your Microsoft account (Entra ID).
+5. If successful, the server status will show **Running** and tools will be available.
+6. Ask "What is the weather in NYC?" or any other supported tool.
+
+**If you see 'Error' or 'Restart':**
+- Check that the APIM name is correct and matches your Azure resource.
+- If the URL looks malformed (extra text, spaces, or symbols), re-enter the APIM name carefully.
+- If you get a 401 Unauthorized, ensure your account has access and APIM policies are set up for OAuth.
+- If you never see an authentication prompt, update your MCP config to include an `Authorization` header and prompt for a Bearer token.
+
+#### Mermaid Diagram: APIM OAuth Flow
+```mermaid
+sequenceDiagram
+  participant VSCode
+  participant User
+  participant APIM
+  participant AzureFunction
+  participant EntraID
+  User->>VSCode: Start remote-mcp-server-apim
+  VSCode->>APIM: Connect to https://<apim-name>.azure-api.net/mcp
+  APIM->>VSCode: 401 Unauthorized (OAuth required)
+  VSCode->>User: Prompt for Microsoft login
+  User->>EntraID: Authenticate
+  EntraID->>VSCode: Return access token
+  VSCode->>APIM: Send request with Bearer token
+  APIM->>AzureFunction: Forward request
+  AzureFunction->>APIM: Return MCP response
+  APIM->>VSCode: Return MCP response
+```
+
+**Key troubleshooting tips for APIM/OAuth:**
+- Always enter the APIM name exactly as shown in Azure Portal.
+- If you see a malformed URL, check for extra spaces or autocomplete artifacts in the input.
+- If you get a 401, make sure your account is allowed and APIM policies are correct.
+- If you never see an OAuth prompt, update your MCP config to request an Azure AD token.
+
+---
+
+## Quick Reference: Common Problems & Solutions
+
+| Problem | Solution |
+|---------|----------|
+| Local server won't start | Run `npm install` and `func start` |
+| Remote server 401 | Double-check Function App key and name |
+| APIM server 401 | Ensure OAuth prompt appears; check APIM policies |
+| Malformed APIM URL | Re-enter APIM name carefully |
+| No OAuth prompt | Update MCP config to request Bearer token |
+
+---
+
+## Why APIM/OAuth is Important
+
+Using APIM with OAuth provides enterprise-grade security, centralized access control, and seamless integration with Microsoft Entra ID. This is the recommended way to expose MCP servers in production.
+
+---
+
+For BYO MCP server instructions, see [Host bring-your-own (BYO) MCP servers on Azure Functions](https://github.com/Azure-Samples/mcp-sdk-functions-hosting-node/blob/main/BYOServer.md).
